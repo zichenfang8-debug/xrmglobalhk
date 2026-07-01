@@ -51,3 +51,8 @@ temp/
 
 # Local documents generated from templates
 *.local.*
+
+# n8n local runtime data (binary, not for version control)
+.n8n-local/
+*.sqlite
+*.sqlite-journal

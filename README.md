@@ -90,6 +90,19 @@ Planned development areas include:
 - n8n workflow automation for sourcing, documents, and operations
 - Internal templates for PI, CI, RFQ, and procurement documentation
 
+## AI Nightly Workflow System
+
+The repository now includes a draft-only nightly AI workflow layer under `automation/`.
+
+Start here:
+
+- `automation/README.md` explains the architecture, folder structure, safety rules, n8n import steps, manual review process, rollback, and troubleshooting.
+- `automation/n8n/nightly-ai-workflow.json` is the n8n workflow import file.
+- `automation/prompts/` contains the AI prompts for classification, privacy redaction, supplier extraction, hotel procurement extraction, website drafts, social posts, and daily reports.
+- `data/schemas/` contains Google Sheets / Notion / CSV-compatible schemas.
+
+Automation must only create draft or pending-review outputs. It must not publish website changes without human approval.
+
 ## Platform Strategy
 
 ### Google Drive
@@ -213,6 +226,19 @@ prompts/
 - GitHub 版本控制与变更记录
 - n8n 自动化工作流，用于寻源、文件和运营流程
 - PI、CI、RFQ 及采购文件内部模板
+
+## AI 夜间自动工作流系统
+
+本仓库已经加入只生成草稿的夜间 AI 自动工作流层，位置在 `automation/`。
+
+请从这里开始：
+
+- `automation/README.md` 说明系统架构、文件夹结构、安全规则、n8n 导入方式、人工审核流程、回滚方式和排错方法。
+- `automation/n8n/nightly-ai-workflow.json` 是可导入 n8n 的工作流文件。
+- `automation/prompts/` 保存文件分类、隐私脱敏、供应商提取、酒店采购提取、网站草稿、社媒文案、日报生成提示词。
+- `data/schemas/` 保存兼容 Google Sheets / Notion / CSV 的字段结构。
+
+自动化只能生成 draft 或 pending-review 内容，不允许在没有人工审核的情况下公开发布网站更新。
 
 ## 平台策略
 

@@ -1,0 +1,19 @@
+{
+  "generated_by_ai": true,
+  "status": "pending-review",
+  "supplier_updates": [
+    {
+      "supplier_id": "SUP-20260701-TEST",
+      "public_display_name": "Public-Safe Supplier A",
+      "category": [
+        "hotel FF&E",
+        "hotel OS&E"
+      ],
+      "lead_time": "35-45 days after sample approval",
+      "privacy_flags": [],
+      "next_actions": [
+        "Request updated MOQ and packaging details"
+      ]
+    }
+  ]
+}

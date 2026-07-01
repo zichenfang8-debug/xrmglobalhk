@@ -1,0 +1,549 @@
+{
+  "name": "AI Nightly Workflow - China Procurement Partner",
+  "nodes": [
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "hour": 22,
+              "minute": 0
+            }
+          ]
+        }
+      },
+      "id": "cron-nightly-2200",
+      "name": "Cron Trigger - Every Night 22:00",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        -1180,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "watchFolderId",
+              "value": "={{$env.GOOGLE_DRIVE_WATCH_FOLDER_ID}}"
+            },
+            {
+              "name": "githubOwner",
+              "value": "={{$env.GITHUB_OWNER}}"
+            },
+            {
+              "name": "githubRepo",
+              "value": "={{$env.GITHUB_REPO}}"
+            },
+            {
+              "name": "baseBranch",
+              "value": "={{$env.GITHUB_BASE_BRANCH || 'main'}}"
+            },
+            {
+              "name": "draftBranch",
+              "value": "={{($env.GITHUB_DRAFT_BRANCH_PREFIX || 'ai-nightly-draft') + '-' + $now.toFormat('yyyy-LL-dd')}}"
+            },
+            {
+              "name": "runDate",
+              "value": "={{$now.toFormat('yyyy-LL-dd')}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-run-config",
+      "name": "Set Run Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        -980,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "queryString": "='{{ $json.watchFolderId }}' in parents and trashed = false and modifiedTime > '{{ $now.startOf('day').toISO() }}'"
+      },
+      "id": "google-drive-scan",
+      "name": "Google Drive - Scan Today's New Files",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -760,
+        0
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "REPLACE_WITH_N8N_CREDENTIAL_ID",
+          "name": "Google Drive OAuth"
+        }
+      },
+      "notes": "Scans watched folder for files modified today. Configure the folder ID in GOOGLE_DRIVE_WATCH_FOLDER_ID."
+    },
+    {
+      "parameters": {
+        "jsCode": "const supported = ['application/pdf','application/vnd.openxmlformats-officedocument.wordprocessingml.document','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','image/','video/','audio/','text/','text/markdown'];\nreturn items.map(item => {\n  const mimeType = item.json.mimeType || '';\n  const isSupported = supported.some(prefix => mimeType.startsWith(prefix) || mimeType === prefix);\n  return { json: { ...item.json, isSupported, sourceFileId: item.json.id, sourceFileName: item.json.name, processingStatus: isSupported ? 'ready' : 'unsupported' } };\n});"
+      },
+      "id": "normalize-file-metadata",
+      "name": "Normalize File Metadata",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -540,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.isSupported}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "if-supported",
+      "name": "Only Supported Files",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -320,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": "={{$json.sourceFileId}}"
+      },
+      "id": "google-drive-download",
+      "name": "Google Drive - Download File",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -80,
+        -120
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "REPLACE_WITH_N8N_CREDENTIAL_ID",
+          "name": "Google Drive OAuth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n  const metadata = item.json;\n  const binaryKeys = Object.keys(item.binary || {});\n  const binaryInfo = binaryKeys.map(key => ({ key, fileName: item.binary[key].fileName, mimeType: item.binary[key].mimeType, fileSize: item.binary[key].fileSize }));\n  return { json: { ...metadata, binaryInfo, extractedText: metadata.extractedText || '[Configure OCR/transcription/document extraction node here for PDF, Word, Excel, image, video, audio, Markdown, and TXT.]' }, binary: item.binary };\n});"
+      },
+      "id": "extract-text-placeholder",
+      "name": "Extract Text / OCR / Transcription",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        140,
+        -120
+      ],
+      "notes": "Replace or extend this node with PDF extraction, Office parsing, OCR, audio transcription, and video transcript tooling available in your n8n environment."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-4.1-mini\",\n  \"temperature\": 0.1,\n  \"messages\": [\n    {\"role\":\"system\",\"content\":\"Use automation/prompts/privacy-redaction.prompt.md. Redact sensitive data before external or website drafts.\"},\n    {\"role\":\"user\",\"content\": JSON.stringify($json)}\n  ]\n}"
+      },
+      "id": "ai-privacy-redaction",
+      "name": "AI - Privacy Redaction",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        360,
+        -120
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "REPLACE_WITH_N8N_CREDENTIAL_ID",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-4.1-mini\",\n  \"temperature\": 0.1,\n  \"messages\": [\n    {\"role\":\"system\",\"content\":\"Use automation/prompts/file-classifier.prompt.md. Return strict JSON.\"},\n    {\"role\":\"user\",\"content\": JSON.stringify($json)}\n  ]\n}"
+      },
+      "id": "ai-file-classification",
+      "name": "AI - File Classification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        580,
+        -120
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "REPLACE_WITH_N8N_CREDENTIAL_ID",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-4.1-mini\",\n  \"temperature\": 0.2,\n  \"messages\": [\n    {\"role\":\"system\",\"content\":\"Use supplier, hotel procurement, website article, social content, daily report, and privacy prompts from automation/prompts. Produce structured JSON with report, drafts, data updates, and checklist.\"},\n    {\"role\":\"user\",\"content\": JSON.stringify($json)}\n  ]\n}"
+      },
+      "id": "ai-analysis-and-drafts",
+      "name": "AI - Analyze and Generate Outputs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        800,
+        -120
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "REPLACE_WITH_N8N_CREDENTIAL_ID",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n  const runDate = new Date().toISOString().slice(0, 10);\n  const content = JSON.stringify(item.json, null, 2);\n  const header = `---\\ngenerated-by-ai: true\\nstatus: pending-review\\nrun-date: ${runDate}\\nprivacy-reviewed: required\\n---\\n\\n`;\n  return { json: { runDate, files: [\n    { path: `content/pending-review/${runDate}-nightly-output.md`, content: header + '# AI Nightly Output\\n\\n```json\\n' + content + '\\n```\\n' },\n    { path: `automation/reports/${runDate}-ai-nightly-report.md`, content: header + '# AI Nightly Work Report\\n\\n```json\\n' + content + '\\n```\\n' },\n    { path: `content/drafts/${runDate}-website-drafts.md`, content: header + '# Website Drafts\\n\\nDraft only. Do not publish without human approval.\\n' },\n    { path: `data/suppliers/${runDate}-supplier-updates.json`, content },\n    { path: `data/projects/${runDate}-project-updates.json`, content },\n    { path: `data/knowledge-base/${runDate}-knowledge-updates.json`, content }\n  ], commitMessage: `AI nightly workflow: draft updates for ${runDate}` } };\n});"
+      },
+      "id": "prepare-repo-files",
+      "name": "Prepare Draft Files and Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1020,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{JSON.stringify($json).toLowerCase()}}",
+              "operation": "notContains",
+              "value2": "\"privacy_risk\":\"high\""
+            }
+          ]
+        }
+      },
+      "id": "if-no-high-privacy-risk",
+      "name": "Stop If High Privacy Risk",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1240,
+        -120
+      ],
+      "notes": "If high privacy risk is detected, do not create a branch, commit, or PR."
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "createOrUpdate",
+        "owner": "={{$node['Set Run Config'].json.githubOwner}}",
+        "repository": "={{$node['Set Run Config'].json.githubRepo}}",
+        "branch": "={{$node['Set Run Config'].json.draftBranch}}",
+        "filePath": "={{$json.files[0].path}}",
+        "fileContent": "={{$json.files[0].content}}",
+        "commitMessage": "={{$json.commitMessage}}"
+      },
+      "id": "github-commit-draft",
+      "name": "GitHub - Commit Draft Files",
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1,
+      "position": [
+        1460,
+        -220
+      ],
+      "credentials": {
+        "githubApi": {
+          "id": "REPLACE_WITH_N8N_CREDENTIAL_ID",
+          "name": "GitHub Token"
+        }
+      },
+      "notes": "Importers may need this node adjusted to loop over all prepared files. Keep commits on draft branches only."
+    },
+    {
+      "parameters": {
+        "resource": "pullRequest",
+        "operation": "create",
+        "owner": "={{$node['Set Run Config'].json.githubOwner}}",
+        "repository": "={{$node['Set Run Config'].json.githubRepo}}",
+        "title": "={{'AI nightly draft review - ' + $node['Set Run Config'].json.runDate}}",
+        "body": "Draft-only AI outputs. Review privacy checklist before merge. Do not publish automatically.",
+        "base": "={{$node['Set Run Config'].json.baseBranch}}",
+        "head": "={{$node['Set Run Config'].json.draftBranch}}"
+      },
+      "id": "github-create-pr",
+      "name": "GitHub - Create Pull Request",
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1,
+      "position": [
+        1680,
+        -220
+      ],
+      "credentials": {
+        "githubApi": {
+          "id": "REPLACE_WITH_N8N_CREDENTIAL_ID",
+          "name": "GitHub Token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{$env.REVIEW_NOTIFICATION_FROM || 'n8n@example.com'}}",
+        "toEmail": "={{$env.REVIEW_NOTIFICATION_EMAIL}}",
+        "subject": "={{'AI Nightly Work Report - ' + $node['Set Run Config'].json.runDate}}",
+        "text": "The AI nightly workflow generated draft-only outputs and a GitHub PR for human review. Check privacy redaction, supplier data, website drafts, social drafts, and next actions before approval."
+      },
+      "id": "send-review-report",
+      "name": "Send Review Report",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        1900,
+        -220
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "REPLACE_WITH_N8N_CREDENTIAL_ID",
+          "name": "SMTP Review Email"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{$env.REVIEW_NOTIFICATION_FROM || 'n8n@example.com'}}",
+        "toEmail": "={{$env.REVIEW_NOTIFICATION_EMAIL}}",
+        "subject": "AI Nightly Workflow Stopped - Privacy or Processing Issue",
+        "text": "The workflow stopped before GitHub push. Review unsupported files, extraction errors, or high privacy risk output in n8n execution logs."
+      },
+      "id": "send-failure-report",
+      "name": "Send Failure / Manual Review Notice",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        1460,
+        80
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "REPLACE_WITH_N8N_CREDENTIAL_ID",
+          "name": "SMTP Review Email"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Cron Trigger - Every Night 22:00": {
+      "main": [
+        [
+          {
+            "node": "Set Run Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Run Config": {
+      "main": [
+        [
+          {
+            "node": "Google Drive - Scan Today's New Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive - Scan Today's New Files": {
+      "main": [
+        [
+          {
+            "node": "Normalize File Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize File Metadata": {
+      "main": [
+        [
+          {
+            "node": "Only Supported Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Only Supported Files": {
+      "main": [
+        [
+          {
+            "node": "Google Drive - Download File",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Failure / Manual Review Notice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive - Download File": {
+      "main": [
+        [
+          {
+            "node": "Extract Text / OCR / Transcription",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Text / OCR / Transcription": {
+      "main": [
+        [
+          {
+            "node": "AI - Privacy Redaction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI - Privacy Redaction": {
+      "main": [
+        [
+          {
+            "node": "AI - File Classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI - File Classification": {
+      "main": [
+        [
+          {
+            "node": "AI - Analyze and Generate Outputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI - Analyze and Generate Outputs": {
+      "main": [
+        [
+          {
+            "node": "Prepare Draft Files and Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Draft Files and Report": {
+      "main": [
+        [
+          {
+            "node": "Stop If High Privacy Risk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop If High Privacy Risk": {
+      "main": [
+        [
+          {
+            "node": "GitHub - Commit Draft Files",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Failure / Manual Review Notice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GitHub - Commit Draft Files": {
+      "main": [
+        [
+          {
+            "node": "GitHub - Create Pull Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GitHub - Create Pull Request": {
+      "main": [
+        [
+          {
+            "node": "Send Review Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true
+  },
+  "pinData": {},
+  "versionId": "nightly-ai-workflow-v1",
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "description": "Draft-only nightly AI workflow for China Procurement Partner. Human review required before publication."
+  },
+  "tags": [
+    {
+      "name": "ai-nightly"
+    },
+    {
+      "name": "draft-only"
+    }
+  ]
+}

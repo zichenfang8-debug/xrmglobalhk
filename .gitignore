@@ -48,6 +48,7 @@ tmp/
 temp/
 *.tmp
 *.bak
+.n8n-local/
 
 # Local documents generated from templates
 *.local.*

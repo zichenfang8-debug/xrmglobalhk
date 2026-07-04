@@ -103,6 +103,20 @@ Start here:
 
 Automation must only create draft or pending-review outputs. It must not publish website changes without human approval.
 
+## Local API Keys
+
+Automation secrets are loaded from local `.env` files and must never be committed.
+
+Use `.env.example` as the template and keep real values in `.env`, `.env.local`, or `.env.production`.
+
+Cloudflare DNS automation for `n8n.xrmglobalhk.com` uses:
+
+```text
+CF_API_TOKEN=
+```
+
+See `docs/API_KEYS.md` for the required minimum Cloudflare token permissions and setup process.
+
 ## Platform Strategy
 
 ### Google Drive
@@ -239,6 +253,20 @@ prompts/
 - `data/schemas/` 保存兼容 Google Sheets / Notion / CSV 的字段结构。
 
 自动化只能生成 draft 或 pending-review 内容，不允许在没有人工审核的情况下公开发布网站更新。
+
+## 本地 API Key
+
+自动化密钥从本地 `.env` 文件读取，真实密钥不得提交到 Git。
+
+使用 `.env.example` 作为模板，将真实值放在 `.env`、`.env.local` 或 `.env.production`。
+
+`n8n.xrmglobalhk.com` 的 Cloudflare DNS 自动化使用：
+
+```text
+CF_API_TOKEN=
+```
+
+最小权限设置和安全要求见 `docs/API_KEYS.md`。
 
 ## 平台策略
 

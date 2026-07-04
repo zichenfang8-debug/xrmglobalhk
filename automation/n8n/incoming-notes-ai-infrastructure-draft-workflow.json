@@ -1,0 +1,83 @@
+{
+  "name": "Incoming Notes to AI Infrastructure Draft - Pending Review",
+  "active": false,
+  "version": "draft-2026-07-04",
+  "generated-by-ai": true,
+  "review-required": true,
+  "notes": "Draft architecture for Google Drive -> n8n -> Claude -> GitHub draft branch -> Cloudflare Pages preview. Do not activate until Claude, GitHub and Cloudflare credentials are configured and manually reviewed.",
+  "safety": {
+    "publishAutomatically": false,
+    "writePath": "content/drafts/",
+    "branchPolicy": "draft branch only",
+    "protectedData": [
+      "hotel client names",
+      "Wang Ge information",
+      "XRM internal contacts",
+      "private project names",
+      "company seals",
+      "sensitive deal details"
+    ]
+  },
+  "trigger": {
+    "type": "Google Drive Trigger",
+    "folderName": "Incoming Notes",
+    "folderId": "1La3tKq3qBZyaGqKC800Ey9ab9H_WF63_",
+    "credentialId": "48NFhX6TRjXw7ITP"
+  },
+  "steps": [
+    {
+      "name": "New file detected",
+      "system": "n8n",
+      "status": "ready-after-import",
+      "description": "Watch the Google Drive folder named Incoming Notes."
+    },
+    {
+      "name": "Read file",
+      "system": "n8n Google Drive",
+      "status": "credential verified",
+      "description": "Download file text or export Google Docs content."
+    },
+    {
+      "name": "Privacy redaction",
+      "system": "n8n code node",
+      "status": "draft",
+      "description": "Remove or anonymize protected names, contacts, project identifiers and seals before AI processing."
+    },
+    {
+      "name": "Claude summarizes and classifies",
+      "system": "Claude API",
+      "status": "blocked-pending-api-key",
+      "description": "Generate summary, classification, website article draft, SEO title, meta description, tags and category."
+    },
+    {
+      "name": "Save generated draft",
+      "system": "Codex/GitHub",
+      "status": "blocked-pending-github-auth",
+      "description": "Write Markdown to content/drafts/ or content/pending-review/ only."
+    },
+    {
+      "name": "Commit to draft branch",
+      "system": "GitHub",
+      "status": "blocked-pending-github-auth",
+      "description": "Commit with a clear message to a draft branch. No direct main branch publishing."
+    },
+    {
+      "name": "Prepare Cloudflare Pages preview",
+      "system": "Cloudflare Pages",
+      "status": "blocked-pending-cloudflare-auth",
+      "description": "Create or check preview deployment only after draft branch push."
+    },
+    {
+      "name": "Manual review",
+      "system": "Human approval",
+      "status": "required",
+      "description": "No production publication until approved."
+    }
+  ],
+  "expectedOutput": {
+    "draftArticlePath": "content/drafts/{date}-{slug}.md",
+    "reviewChecklistPath": "automation/reports/{date}-review-checklist.md",
+    "branchPrefix": "draft/",
+    "commitMessagePattern": "Add AI-generated draft for review: {title}"
+  }
+}

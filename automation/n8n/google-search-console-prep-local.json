@@ -1,0 +1,95 @@
+{
+  "name": "XRM Google Search Console Prep - Local",
+  "active": false,
+  "version": "2026-07-05-local-draft",
+  "generated-by-ai": true,
+  "review-required": true,
+  "notes": "Local workflow blueprint for future GSC integration. Uses sample rows until Google Search Console credential is added.",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { source: 'sample-gsc', property: 'https://xrmglobalhk.com/', rows: [ { query: 'china procurement partner', page: '/', clicks: 0, impressions: 120, ctr: 0, position: 18.4 }, { query: 'hotel ffe procurement china', page: '/hotel-procurement', clicks: 0, impressions: 80, ctr: 0, position: 22.1 } ] } }];"
+      },
+      "id": "sample-gsc-rows",
+      "name": "Sample GSC Rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        260,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.first().json.rows; const opportunities = rows.map(row => ({ ...row, opportunity: row.impressions > 50 && row.position >= 8 ? 'Create or improve content' : 'Monitor', recommended_action: row.ctr === 0 ? 'Improve title/meta and add internal links' : 'Review ranking page' })); return [{ json: { generated_by_ai: true, status: 'pending-review', workflow: 'google-search-console-prep-local', opportunities } }];"
+      },
+      "id": "analyze-opportunities",
+      "name": "Analyze SEO Opportunities",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json; item.review_checklist = ['Connect readonly Google Search Console credential later', 'Verify property ownership manually', 'Do not change DNS while Cloudflare ticket is pending', 'Review suggested pages before drafting', 'Create drafts only']; return [{ json: item }];"
+      },
+      "id": "gsc-review-checklist",
+      "name": "GSC Review Checklist",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        780,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Sample GSC Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sample GSC Rows": {
+      "main": [
+        [
+          {
+            "node": "Analyze SEO Opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze SEO Opportunities": {
+      "main": [
+        [
+          {
+            "node": "GSC Review Checklist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

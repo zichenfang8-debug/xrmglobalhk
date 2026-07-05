@@ -1,0 +1,95 @@
+{
+  "name": "XRM LinkedIn Lead Generation - Draft Only",
+  "active": false,
+  "version": "2026-07-05-local-draft",
+  "generated-by-ai": true,
+  "review-required": true,
+  "notes": "Local workflow blueprint. Qualifies sample leads and drafts messages. Does not scrape or send messages.",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { leads: [ { lead_name: 'Sample Buyer', company: 'Sample Hospitality Developer', title: 'Procurement Director', country: 'Thailand', source: 'manual-sample' }, { lead_name: 'Sample Infrastructure Buyer', company: 'Sample Data Center Builder', title: 'Project Manager', country: 'Singapore', source: 'manual-sample' } ] } }];"
+      },
+      "id": "sample-leads",
+      "name": "Sample Lead List",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        260,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const leads = $input.first().json.leads.map(lead => { const text = `${lead.title} ${lead.company}`.toLowerCase(); const segment = text.includes('data center') ? 'AI infrastructure buyer' : 'hotel procurement buyer'; return { ...lead, segment, fit_score: segment.includes('hotel') ? 82 : 78, recommended_angle: segment.includes('hotel') ? 'Hotel FF&E/OS&E procurement support from China' : 'AI infrastructure supporting products from China', manual_review_required: true }; }); return [{ json: { generated_by_ai: true, status: 'pending-review', workflow: 'linkedin-lead-generation-local', leads } }];"
+      },
+      "id": "qualify-leads",
+      "name": "Qualify Leads",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json; item.leads = item.leads.map(lead => ({ ...lead, draft_message: `Hello ${lead.lead_name}, I work on China procurement coordination for ${lead.segment.includes('hotel') ? 'hotel FF&E/OS&E projects' : 'AI infrastructure supporting products'}. If you are comparing suppliers or preparing an RFQ, I would be glad to share a structured sourcing approach.`, send_automatically: false })); item.review_checklist = ['Confirm lead source is compliant', 'Review message manually', 'Do not auto-send', 'Remove confidential project references', 'Log approved outreach manually']; return [{ json: item }];"
+      },
+      "id": "draft-messages",
+      "name": "Draft Outreach Messages",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        780,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Sample Lead List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sample Lead List": {
+      "main": [
+        [
+          {
+            "node": "Qualify Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qualify Leads": {
+      "main": [
+        [
+          {
+            "node": "Draft Outreach Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

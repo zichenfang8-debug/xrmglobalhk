@@ -1,0 +1,119 @@
+{
+  "name": "XRM Local SEO Blog Pipeline - Draft Only",
+  "active": false,
+  "version": "2026-07-05-local-draft",
+  "generated-by-ai": true,
+  "review-required": true,
+  "notes": "Local manual-trigger workflow blueprint. Produces SEO/blog draft instructions only. Does not publish, deploy, or modify production content.",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { generated_by_ai: true, status: 'pending-review', workflow: 'seo-blog-pipeline-local', topic: 'China procurement partner for overseas buyers', target_keyword: 'China procurement partner', buyer_segment: 'overseas developers, contractors, procurement managers', output_path: 'content/drafts/', safety: { publish: false, require_human_review: true } } }];"
+      },
+      "id": "prepare-seo-brief",
+      "name": "Prepare SEO Brief",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        260,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json; item.seo = { seo_title: 'China Procurement Partner for Overseas Buyers', meta_description: 'XRM helps overseas buyers source, compare, and coordinate reliable China suppliers for procurement and export-ready projects.', suggested_slug: 'china-procurement-partner', internal_links: ['hotel-procurement', 'ai-infrastructure-supply', 'sourcing-services'], tags: ['China procurement', 'supplier sourcing', 'RFQ support'] }; return [{ json: item }];"
+      },
+      "id": "generate-metadata",
+      "name": "Generate SEO Metadata",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json; item.draft = { frontmatter: { 'generated-by-ai': true, status: 'pending-review', 'content-type': 'seo-blog-draft', 'target-keyword': item.target_keyword, 'seo-title': item.seo.seo_title, 'meta-description': item.seo.meta_description, 'privacy-reviewed': 'required' }, outline: ['Problem: overseas buyers struggle to verify suppliers', 'How a China procurement partner helps', 'RFQ support and supplier comparison', 'Quality control and export coordination', 'CTA: request RFQ support'], publish_allowed: false }; return [{ json: item }];"
+      },
+      "id": "draft-outline",
+      "name": "Draft Article Outline",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        780,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json; item.review_checklist = ['Confirm keyword/search intent', 'Confirm no confidential names', 'Check facts and claims', 'Check internal links', 'Confirm draft path only', 'Human approval before publishing']; return [{ json: item }];"
+      },
+      "id": "review-checklist",
+      "name": "Create Review Checklist",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Prepare SEO Brief",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare SEO Brief": {
+      "main": [
+        [
+          {
+            "node": "Generate SEO Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate SEO Metadata": {
+      "main": [
+        [
+          {
+            "node": "Draft Article Outline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Draft Article Outline": {
+      "main": [
+        [
+          {
+            "node": "Create Review Checklist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

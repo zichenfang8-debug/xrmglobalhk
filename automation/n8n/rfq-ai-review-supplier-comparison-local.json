@@ -1,0 +1,119 @@
+{
+  "name": "XRM RFQ AI Review and Supplier Comparison - Local",
+  "active": false,
+  "version": "2026-07-05-local-draft",
+  "generated-by-ai": true,
+  "review-required": true,
+  "notes": "Local manual-trigger workflow blueprint. Uses sample RFQ data and creates review-only comparison output.",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { rfq_id: 'RFQ-SAMPLE-001', buyer_context: 'redacted overseas buyer', line_items: [ { item: 'UPS', spec: 'Needs verification', quantity: 2 }, { item: 'Server rack', spec: '42U', quantity: 10 } ], supplier_quotes: [ { supplier: 'Supplier A', item: 'UPS', unit_price: 1000, currency: 'USD', lead_time: '30 days' }, { supplier: 'Supplier B', item: 'Server rack', unit_price: 450, currency: 'USD', lead_time: '25 days' } ], privacy_redacted: true } }];"
+      },
+      "id": "sample-rfq",
+      "name": "Sample RFQ Package",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        260,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const rfq = $input.first().json; const missing = rfq.line_items.filter(i => !i.spec || i.spec === 'Needs verification').map(i => `${i.item}: specification incomplete`); const risks = []; if (!rfq.privacy_redacted) risks.push('Privacy redaction required before supplier-facing use'); return [{ json: { ...rfq, ai_review: { missing_information: missing, commercial_risks: risks, supplier_questions: missing.map(m => `Please clarify ${m}`), manual_review_required: true } } }];"
+      },
+      "id": "ai-review",
+      "name": "AI Review",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json; const comparison = item.supplier_quotes.map(q => ({ supplier: q.supplier, item: q.item, unit_price: q.unit_price, currency: q.currency, lead_time: q.lead_time, risk_note: q.item === 'UPS' ? 'Confirm certification and battery spec' : 'Confirm rack load rating and packaging', recommendation: 'Needs human review' })); return [{ json: { generated_by_ai: true, status: 'pending-review', workflow: 'rfq-ai-review-supplier-comparison-local', rfq_id: item.rfq_id, comparison, ai_review: item.ai_review, output_path: `automation/reports/${item.rfq_id}-supplier-comparison.md`, publish_or_send: false } }];"
+      },
+      "id": "supplier-comparison",
+      "name": "Supplier Comparison",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        780,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json; item.review_checklist = ['Confirm buyer identity remains redacted', 'Confirm specs and quantities', 'Confirm quotation currency and validity', 'Confirm supplier certifications', 'Confirm no supplier message is sent automatically', 'Approve shortlist manually']; return [{ json: item }];"
+      },
+      "id": "rfq-review-checklist",
+      "name": "RFQ Review Checklist",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Sample RFQ Package",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sample RFQ Package": {
+      "main": [
+        [
+          {
+            "node": "AI Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Review": {
+      "main": [
+        [
+          {
+            "node": "Supplier Comparison",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supplier Comparison": {
+      "main": [
+        [
+          {
+            "node": "RFQ Review Checklist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
